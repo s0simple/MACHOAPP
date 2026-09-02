@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  emailVerified Boolean        @default(false)
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  role          String         @default("passenger")
+  accounts      Account[]
+  driver        Driver?
+  notifications Notification[]
+  passenger     Passenger?
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+model Driver {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  phone         String?
+  licenseNumber String?
+  isAvailable   Boolean   @default(true)
+  isApproved    Boolean   @default(false)
+  rating        Float     @default(5.0)
+  totalTrips    Int       @default(0)
+  currentLat    Float?
+  currentLng    Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips         Trip[]
+  vehicles      Vehicle[]
+
+  @@map("drivers")
+}
+
+model Passenger {
+  id        String                  @id @default(cuid())
+  userId    String                  @unique
+  phone     String?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requests  TransportationRequest[]
+
+  @@map("passengers")
+}
+
+model VehicleType {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  description  String?
+  icon         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  pricingRules PricingRule[]
+  vehicles     Vehicle[]
+
+  @@map("vehicle_types")
+}
+
+model Vehicle {
+  id                 String         @id @default(cuid())
+  driverId           String
+  typeId             String
+  make               String
+  model              String
+  year               Int?
+  registrationNumber String         @unique
+  capacity           Float
+  color              String?
+  length             Float?
+  width              Float?
+  height             Float?
+  status             String         @default("available")
+  isVerified         Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  trips              Trip[]
+  images             VehicleImage[]
+  driver             Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleType        VehicleType    @relation(fields: [typeId], references: [id])
+
+  @@map("vehicles")
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  vehicleId String
+  url       String
+  isMain    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_images")
+}
+
+model TransportationRequest {
+  id                 String    @id @default(cuid())
+  passengerId        String
+  pickupAddress      String
+  pickupLat          Float
+  pickupLng          Float
+  destAddress        String
+  destLat            Float
+  destLng            Float
+  goodsType          String
+  goodsDescription   String?
+  weight             Float
+  length             Float?
+  width              Float?
+  height             Float?
+  quantity           Int       @default(1)
+  isFragile          Boolean   @default(false)
+  needsRefrigeration Boolean   @default(false)
+  distance           Float
+  estimatedPrice     Float?
+  status             String    @default("pending")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  passenger          Passenger @relation(fields: [passengerId], references: [id])
+  trip               Trip?
+
+  @@map("transportation_requests")
+}
+
+model Trip {
+  id            String                @id @default(cuid())
+  requestId     String                @unique
+  driverId      String
+  vehicleId     String
+  status        String                @default("assigned")
+  actualPrice   Float?
+  driverEarning Float?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  driver        Driver                @relation(fields: [driverId], references: [id])
+  request       TransportationRequest @relation(fields: [requestId], references: [id])
+  vehicle       Vehicle               @relation(fields: [vehicleId], references: [id])
+
+  @@map("trips")
+}
+
+model PricingRule {
+  id              String      @id @default(cuid())
+  vehicleTypeId   String
+  baseRate        Float
+  perKmRate       Float
+  perKgRate       Float
+  minPrice        Float
+  surgeMultiplier Float       @default(1.0)
+  isActive        Boolean     @default(true)
+  effectiveFrom   DateTime    @default(now())
+  effectiveTo     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  vehicleType     VehicleType @relation(fields: [vehicleTypeId], references: [id])
+
+  @@map("pricing_rules")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Student {
+  id        String   @id
+  name      String
+  email     String   @unique
+  age       Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
