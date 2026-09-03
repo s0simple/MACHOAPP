@@ -42,10 +42,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">
+            {/* <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">
               K
             </div>
-            <span className="text-xl font-bold">MACHO App</span>
+            <span className="text-xl font-bold">MACHO App</span> */}
+            <img src={"/logo.png"} width={150} height={150} />
           </Link>
           <h1 className="text-2xl font-bold">Welcome back</h1>
           <p className="text-muted mt-2">Sign in to your account</p>
@@ -60,7 +61,9 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="label">Email</label>
+              <label htmlFor="email" className="label">
+                Email
+              </label>
               <input
                 id="email"
                 type="email"
@@ -73,7 +76,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="label">Password</label>
+              <label htmlFor="password" className="label">
+                Password
+              </label>
               <input
                 id="password"
                 type="password"
@@ -96,7 +101,10 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-muted mt-6">
             Don't have an account?{" "}
-            <Link href="/register" className="text-primary font-medium hover:underline">
+            <Link
+              href="/register"
+              className="text-primary font-medium hover:underline"
+            >
               Create one
             </Link>
           </p>

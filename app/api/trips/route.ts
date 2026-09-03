@@ -218,6 +218,40 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // On completion, reveal the price to BOTH parties via notification.
+    if (status === "completed") {
+      const finalPrice = updatedTrip.actualPrice ?? trip.request.estimatedPrice;
+      if (finalPrice !== null) {
+        const priceMsg = `Trip ended. Customer will pay GHS ${Number(finalPrice).toFixed(2)}.`;
+        // Notify the passenger
+        const requestWithPassenger = await prisma.transportationRequest.findUnique({
+          where: { id: trip.requestId },
+          include: { passenger: { select: { userId: true } } },
+        });
+        if (requestWithPassenger) {
+          await prisma.notification.create({
+            data: {
+              userId: requestWithPassenger.passenger.userId,
+              type: "trip_completed",
+              title: "Trip Completed",
+              message: priceMsg,
+              link: "/dashboard/requests",
+            },
+          });
+        }
+        // Notify the driver
+        await prisma.notification.create({
+          data: {
+            userId: trip.driver.userId,
+            type: "trip_completed",
+            title: "Trip Completed",
+            message: priceMsg,
+            link: "/dashboard/my-trips",
+          },
+        });
+      }
+    }
+
     return NextResponse.json(updatedTrip, { status: 200 });
   } catch (error) {
     console.error("Update trip error:", error);

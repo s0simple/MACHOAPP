@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -7,17 +8,30 @@ export default function Home() {
       <header className="bg-primary text-white">
         <div className="container py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg">
-                K
-              </div>
-              <span className="text-xl font-bold">MACHO App</span>
+            <div className="">
+              <Image
+                src="/logo.png"
+                // className="border bg-blue"
+                width={150}
+                height={150}
+                alt="Picture of the author"
+              />
+              {/* <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg">
+                M
+              </div> */}
+              <div className="text-xl font-bold "></div>
             </div>
             <nav className="flex items-center gap-4">
-              <Link href="/login" className="text-white/80 hover:text-white text-sm font-medium">
+              <Link
+                href="/login"
+                className="text-white/80 hover:text-white text-sm font-medium"
+              >
                 Sign In
               </Link>
-              <Link href="/register" className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90">
+              <Link
+                href="/register"
+                className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90"
+              >
                 Get Started
               </Link>
             </nav>
@@ -34,8 +48,9 @@ export default function Home() {
                 Ghana's Trusted Truck Transportation Platform
               </h1>
               <p className="text-lg text-white/80 mb-8 max-w-2xl">
-                Connect with reliable truck drivers to transport your goods across Ghana. 
-                Real-time tracking, transparent pricing, and verified drivers — all in one platform.
+                Connect with reliable truck drivers to transport your goods
+                across Ghana. Real-time tracking, transparent pricing, and
+                verified drivers — all in one platform.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -58,15 +73,20 @@ export default function Home() {
         {/* Features */}
         <section className="py-16 bg-surface">
           <div className="container">
-            <h2 className="text-2xl font-bold text-center mb-12">How It Works</h2>
+            <h2 className="text-2xl font-bold text-center mb-12">
+              How It Works
+            </h2>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="card text-center">
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <span className="text-primary font-bold text-xl">1</span>
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Post Your Request</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  Post Your Request
+                </h3>
                 <p className="text-muted text-sm">
-                  Enter pickup and destination locations, describe your goods, and specify weight and dimensions.
+                  Enter pickup and destination locations, describe your goods,
+                  and specify weight and dimensions.
                 </p>
               </div>
               <div className="card text-center">
@@ -75,7 +95,8 @@ export default function Home() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Get Matched</h3>
                 <p className="text-muted text-sm">
-                  Our intelligent system matches you with the best available trucks based on location, capacity, and price.
+                  Our intelligent system matches you with the best available
+                  trucks based on location, capacity, and price.
                 </p>
               </div>
               <div className="card text-center">
@@ -84,7 +105,8 @@ export default function Home() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Track & Deliver</h3>
                 <p className="text-muted text-sm">
-                  Track your goods in real-time with GPS. Get notifications at every step until delivery is complete.
+                  Track your goods in real-time with GPS. Get notifications at
+                  every step until delivery is complete.
                 </p>
               </div>
             </div>
@@ -120,8 +142,8 @@ export default function Home() {
           <div className="container text-center">
             <h2 className="text-2xl font-bold mb-4">Ready to Get Started?</h2>
             <p className="text-muted mb-8 max-w-lg mx-auto">
-              Whether you need to transport goods or you're a driver looking for haulage opportunities, 
-              MACHO App connects you to the right people.
+              Whether you need to transport goods or you're a driver looking for
+              haulage opportunities, MACHO App connects you to the right people.
             </p>
             <div className="flex justify-center gap-4">
               <Link href="/register" className="btn btn-primary">
@@ -140,13 +162,15 @@ export default function Home() {
         <div className="container">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
+              {/* <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
                 K
               </div>
-              <span className="font-semibold">MACHO App</span>
+              <span className="font-semibold">MACHO App</span> */}
+              <img src={"/logo.png"} width={120} height={120} />
             </div>
             <p className="text-muted text-sm">
-              &copy; 2026 MACHO App. Ghana's Truck Transportation System. All rights reserved.
+              &copy; 2026 MACHO App. Ghana's Truck Transportation System. All
+              rights reserved.
             </p>
           </div>
         </div>

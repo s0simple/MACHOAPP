@@ -256,6 +256,14 @@ export async function GET(request: Request) {
       },
     });
 
+    // Drivers must NOT see the price before accepting a request. Null it out
+    // so the amount is only revealed once the trip is completed.
+    if (session.user.role === "driver") {
+      for (const r of requests) {
+        r.estimatedPrice = null;
+      }
+    }
+
     // Get total count for pagination
     const total = await prisma.transportationRequest.count({ where });
 

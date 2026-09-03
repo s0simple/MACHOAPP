@@ -33,6 +33,35 @@ const adminNav = [
   { href: "/dashboard/reports", label: "Reports", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
 ];
 
+function NotificationBadge() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const response = await fetch("/api/notifications?unread=true&limit=1");
+        if (response.ok) {
+          const data = await response.json();
+          setCount(data.unreadCount ?? 0);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000); // poll every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  if (count === 0) return null;
+
+  return (
+    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -161,6 +190,16 @@ export default function DashboardLayout({
             <span className="text-sm text-muted hidden sm:inline">
               Welcome back{session.user?.name ? `, ${session.user.name}` : ""}
             </span>
+            <Link
+              href="/dashboard/notifications"
+              className="relative p-2 rounded-lg hover:bg-surface transition"
+              title="Notifications"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0018 9.75v-.7V9a6 6 0 10-12 0v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              <NotificationBadge />
+            </Link>
             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
               <span className="text-primary text-sm font-medium">
                 {session.user?.name?.charAt(0).toUpperCase() || "U"}

@@ -27,6 +27,8 @@ export default function MyTripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [completedTrip, setCompletedTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
     fetchTrips();
@@ -43,6 +45,32 @@ export default function MyTripsPage() {
       console.error("Error fetching trips:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateTripStatus = async (tripId: string, status: string) => {
+    setUpdatingId(tripId);
+    try {
+      const response = await fetch("/api/trips", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId, status }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        if (status === "completed") {
+          // Show the price modal with the final amount
+          setCompletedTrip({ ...updated, request: trips.find(t => t.id === tripId)?.request, vehicle: trips.find(t => t.id === tripId)?.vehicle } as Trip);
+        }
+        fetchTrips();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to update trip");
+      }
+    } catch {
+      alert("Something went wrong");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -117,10 +145,52 @@ export default function MyTripsPage() {
                   <div className="text-xs text-muted mt-1">
                     {new Date(trip.assignedAt).toLocaleDateString()}
                   </div>
+                  {trip.status === "assigned" && (
+                    <button
+                      onClick={() => updateTripStatus(trip.id, "in_transit")}
+                      disabled={updatingId === trip.id}
+                      className="btn btn-primary btn-sm mt-2 w-full"
+                    >
+                      {updatingId === trip.id ? "Starting..." : "Start Trip"}
+                    </button>
+                  )}
+                  {trip.status === "in_transit" && (
+                    <button
+                      onClick={() => updateTripStatus(trip.id, "completed")}
+                      disabled={updatingId === trip.id}
+                      className="btn btn-success btn-sm mt-2 w-full"
+                    >
+                      {updatingId === trip.id ? "Completing..." : "Complete Trip"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Price reveal modal on trip completion */}
+      {completedTrip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold mb-2">Trip Completed!</h2>
+            <p className="text-muted text-sm mb-4">Trip ended. Customer will pay:</p>
+            <div className="text-4xl font-bold text-primary mb-6">
+              GHS {Number(completedTrip.actualPrice ?? 0).toFixed(2)}
+            </div>
+            <button
+              onClick={() => setCompletedTrip(null)}
+              className="btn btn-primary w-full"
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
     </div>

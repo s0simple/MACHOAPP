@@ -58,10 +58,11 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">
+            {/* <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">
               K
             </div>
-            <span className="text-xl font-bold">MACHO App</span>
+            <span className="text-xl font-bold">MACHO App</span> */}
+            <img src={"/logo.png"} width={150} height={150} />
           </Link>
           <h1 className="text-2xl font-bold">Create your account</h1>
           <p className="text-muted mt-2">
