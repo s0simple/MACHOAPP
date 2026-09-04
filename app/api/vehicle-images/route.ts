@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { deleteVehicleImage, uploadVehicleImage } from "@/lib/cloudinary";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -85,10 +84,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Persist files to /uploads/vehicle-images on the server.
-    const uploadDir = path.join(process.cwd(), "uploads", "vehicle-images");
-    await mkdir(uploadDir, { recursive: true });
-
     const currentCount = await prisma.vehicleImage.count({ where: { vehicleId } });
 
     const created: { id: string; url: string }[] = [];
@@ -96,14 +91,17 @@ export async function POST(request: NextRequest) {
 
     for (const file of files) {
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const filename = `${vehicleId}-${crypto.randomUUID()}.${ext}`;
+      const filename = `${vehicleId}-${crypto.randomUUID()}`;
       const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(path.join(uploadDir, filename), buffer);
+
+      // Upload to Cloudinary — persists across redeploys and works on any host.
+      const { secureUrl, publicId } = await uploadVehicleImage(buffer, filename);
 
       const image = await prisma.vehicleImage.create({
         data: {
           vehicleId,
-          url: `/api/uploads/vehicle-images/${filename}`,
+          url: secureUrl,
+          publicId,
           // The first image for a vehicle automatically becomes its main image.
           isMain: currentCount === 0,
           sortOrder: sortOrder++,
@@ -220,6 +218,17 @@ export async function DELETE(request: NextRequest) {
         { error: "You can only delete images for your own vehicles" },
         { status: 403 }
       );
+    }
+
+    // Remove the asset from Cloudinary first. Legacy filesystem-only rows
+    // have no publicId and are skipped.
+    if (image.publicId) {
+      try {
+        await deleteVehicleImage(image.publicId);
+      } catch (cloudinaryError) {
+        // Don't block the DB delete if the Cloudinary cleanup fails.
+        console.warn("Failed to delete Cloudinary asset:", cloudinaryError);
+      }
     }
 
     await prisma.vehicleImage.delete({ where: { id: imageId } });

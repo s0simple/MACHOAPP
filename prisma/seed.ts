@@ -1,10 +1,87 @@
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { v2 as cloudinary } from "cloudinary";
 import "dotenv/config";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
+
+// Simple branded placeholder for demo vehicles (distinct color per type).
+function vehiclePlaceholderSvg(label: string, bg: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <rect width="640" height="480" fill="${bg}"/>
+  <g transform="translate(160,110)">
+    <rect x="0" y="40" width="240" height="140" rx="12" fill="#ffffff" opacity="0.95"/>
+    <path d="M240 80h90l60 60v40h-150z" fill="#ffffff" opacity="0.95"/>
+    <circle cx="80" cy="200" r="30" fill="#1f2937"/>
+    <circle cx="80" cy="200" r="12" fill="${bg}"/>
+    <circle cx="300" cy="200" r="30" fill="#1f2937"/>
+    <circle cx="300" cy="200" r="12" fill="${bg}"/>
+  </g>
+  <text x="320" y="430" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#ffffff" text-anchor="middle">${label}</text>
+</svg>`;
+}
+
+function uploadSvg(svg: string, publicId: string): Promise<{ secureUrl: string; publicId: string }> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { public_id: publicId, resource_type: "image" },
+      (error, result) =>
+        error || !result
+          ? reject(error ?? new Error("Cloudinary upload failed"))
+          : resolve({ secureUrl: result.secure_url, publicId: result.public_id })
+    );
+    stream.end(Buffer.from(svg, "utf8"));
+  });
+}
+
+/**
+ * Give a demo vehicle its main image (uploaded to Cloudinary) if it has none.
+ * Skips gracefully when Cloudinary is not configured or unreachable.
+ */
+async function ensureVehicleImage(
+  vehicle: { id: string; make: string; model: string },
+  label: string,
+  bg: string
+) {
+  const existing = await prisma.vehicleImage.findFirst({
+    where: { vehicleId: vehicle.id },
+  });
+  if (existing) return;
+
+  if (!process.env.CLOUDINARY_URL) {
+    console.warn(`Skipping image for ${vehicle.make} ${vehicle.model} — CLOUDINARY_URL not set`);
+    return;
+  }
+
+  const url = new URL(process.env.CLOUDINARY_URL);
+  cloudinary.config({
+    cloud_name: url.hostname,
+    api_key: url.username,
+    api_secret: url.password,
+  });
+
+  try {
+    const svg = vehiclePlaceholderSvg(label, bg);
+    const { secureUrl, publicId } = await uploadSvg(
+      svg,
+      `kalumalu/vehicle-images/${vehicle.id}-seed-main`
+    );
+    await prisma.vehicleImage.create({
+      data: {
+        vehicleId: vehicle.id,
+        url: secureUrl,
+        publicId,
+        isMain: true,
+        sortOrder: 0,
+      },
+    });
+    console.log(`Created main image for ${vehicle.make} ${vehicle.model}`);
+  } catch (error) {
+    console.warn(`Could not create image for ${vehicle.make} ${vehicle.model}:`, error);
+  }
+}
 
 async function main() {
   console.log("Seeding database...");
@@ -199,7 +276,7 @@ async function main() {
   });
 
   // Create Vehicles
-  await prisma.vehicle.upsert({
+  const vehicle1 = await prisma.vehicle.upsert({
     where: { registrationNumber: "GR 1234-20" },
     update: {},
     create: {
@@ -218,7 +295,7 @@ async function main() {
     },
   });
 
-  await prisma.vehicle.upsert({
+  const vehicle2 = await prisma.vehicle.upsert({
     where: { registrationNumber: "GW 5678-21" },
     update: {},
     create: {
@@ -237,7 +314,7 @@ async function main() {
     },
   });
 
-  await prisma.vehicle.upsert({
+  const vehicle3 = await prisma.vehicle.upsert({
     where: { registrationNumber: "GT 9012-19" },
     update: {},
     create: {
@@ -255,6 +332,11 @@ async function main() {
       isVerified: true,
     },
   });
+
+  // Give each demo vehicle a main image (uploaded to Cloudinary).
+  await ensureVehicleImage(vehicle1, "Cargo Truck", "#2563eb");
+  await ensureVehicleImage(vehicle2, "Mini Truck", "#f59e0b");
+  await ensureVehicleImage(vehicle3, "Container Truck", "#059669");
 
   // Create a demo request (only once — no unique key to upsert on)
   const existingDemoRequest = await prisma.transportationRequest.findFirst({

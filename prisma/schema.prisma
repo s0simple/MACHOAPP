@@ -145,6 +145,7 @@ model VehicleImage {
   id        String   @id @default(cuid())
   vehicleId String
   url       String
+  publicId  String?
   isMain    Boolean  @default(false)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
