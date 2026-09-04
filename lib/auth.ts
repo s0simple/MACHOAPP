@@ -9,6 +9,12 @@ const PUBLIC_ROLES = ["passenger", "driver"] as const;
 export const auth = betterAuth({
   basePath: "/api/auth",
 
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://abosseyokaimacho-git-main-didas-projects-b98f58ad.vercel.app",
+    "https://abosseyokaimacho-*.vercel.app",
+  ],
+
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
