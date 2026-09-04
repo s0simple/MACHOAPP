@@ -22,8 +22,8 @@ export default function LandingHeader() {
           <Link href={isLoggedIn ? "/dashboard" : "/"}>
             <Image
               src="/logo.png"
-              width={64}
-              height={64}
+              width={120}
+              height={120}
               alt="MACHO App"
               className="rounded-lg"
             />
