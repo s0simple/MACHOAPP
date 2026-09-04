@@ -11,6 +11,7 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     "http://localhost:3000",
+    "https://abosseyokaimacho.vercel.app",
     "https://abosseyokaimacho-git-main-didas-projects-b98f58ad.vercel.app",
     "https://abosseyokaimacho-*.vercel.app",
   ],
