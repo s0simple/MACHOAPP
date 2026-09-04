@@ -1,37 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
+import LandingHeader from "@/components/landing-header";
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="container ">
-          <div className="flex items-center justify-between">
-            <Image
-              src="/logo.png"
-              width={130}
-              height={130}
-              alt="MACHO App"
-              className="rounded-lg"
-            />
-            <nav className="flex items-center gap-4">
-              <Link
-                href="/login"
-                className="text-white/80 hover:text-white text-sm font-medium transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="bg-white text-primary px-5 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors shadow-sm"
-              >
-                Get Started
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <LandingHeader />
 
       <main className="flex-1">
         {/* Hero Section */}
