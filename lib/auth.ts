@@ -60,6 +60,24 @@ export const auth = betterAuth({
           }
           return { data: user };
         },
+        // Create the role profile (Passenger/Driver row) at signup so every
+        // user always has one. Previously profiles were created lazily, and
+        // list endpoints treated a missing profile as "no filter", leaking
+        // everyone's requests/trips to new users. Failures are logged but do
+        // not block signup — the lazy creation paths still exist as fallback.
+        async after(user, ctx) {
+          const role = (user as { role?: unknown }).role;
+          try {
+            if (role === "driver") {
+              await prisma.driver.create({ data: { userId: user.id } });
+            } else {
+              await prisma.passenger.create({ data: { userId: user.id } });
+            }
+          } catch (error) {
+            console.error("Failed to create role profile for user:", error);
+          }
+          return;
+        },
       },
     },
   },

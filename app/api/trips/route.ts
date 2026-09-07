@@ -3,6 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
+// Empty paginated result, used when a role-scoped user owns no trips.
+// Fail-closed: a missing role profile must never fall through to an
+// unfiltered query that would expose everyone's trips.
+function emptyTripList(page: number, limit: number) {
+  return NextResponse.json(
+    { trips: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+    { status: 200 }
+  );
+}
+
 export async function GET(request: Request) {
   try {
     // Get session for authentication — trip listings are never public.
@@ -30,25 +40,30 @@ export async function GET(request: Request) {
       where.status = status;
     }
 
-    // Filter based on user role
-    if (session?.user) {
-      if (session.user.role === "driver") {
-        const driver = await prisma.driver.findUnique({
-          where: { userId: session.user.id },
-        });
-        if (driver) {
-          where.driverId = driver.id;
-        }
-      } else if (session.user.role === "passenger") {
-        const passenger = await prisma.passenger.findUnique({
-          where: { userId: session.user.id },
-        });
-        if (passenger) {
-          where.request = { passengerId: passenger.id };
-        }
+    // Filter based on user role. Fail-closed: if the user's role profile
+    // (Driver/Passenger row) does not exist, they own no trips, so return an
+    // empty list instead of skipping the filter and exposing every trip.
+    if (session.user.role === "driver") {
+      const driver = await prisma.driver.findUnique({
+        where: { userId: session.user.id },
+      });
+      if (!driver) {
+        return emptyTripList(page, limit);
       }
-      // Admins can see all trips
+      where.driverId = driver.id;
+    } else if (session.user.role === "passenger") {
+      const passenger = await prisma.passenger.findUnique({
+        where: { userId: session.user.id },
+      });
+      if (!passenger) {
+        return emptyTripList(page, limit);
+      }
+      where.request = { passengerId: passenger.id };
+    } else if (session.user.role !== "admin") {
+      // Unknown/unsupported role: fail closed with an empty list.
+      return emptyTripList(page, limit);
     }
+    // Admins can see all trips
 
     const trips = await prisma.trip.findMany({
       where,

@@ -86,41 +86,42 @@ async function ensureVehicleImage(
 async function main() {
   console.log("Seeding database...");
 
-  // Create Vehicle Types
-  const miniTruck = await prisma.vehicleType.upsert({
-    where: { name: "Mini Truck" },
+  // Create Vehicle Types — Abossey Okai Macho mini-trucks only
+  // (SMALL → MEDIUM → LARGE, all mini-truck sizes).
+  const miniTruckSmall = await prisma.vehicleType.upsert({
+    where: { name: "Mini Truck Small" },
     update: {},
     create: {
-      name: "Mini Truck",
-      description: "Small truck for light loads up to 2 tons",
+      name: "Mini Truck Small",
+      description: "Mini truck (SMALL) for loads up to 1 ton",
     },
   });
 
-  const cargoTruck = await prisma.vehicleType.upsert({
-    where: { name: "Cargo Truck" },
+  const miniTruckMedium = await prisma.vehicleType.upsert({
+    where: { name: "Mini Truck Medium" },
     update: {},
     create: {
-      name: "Cargo Truck",
-      description: "Medium truck for loads up to 5 tons",
+      name: "Mini Truck Medium",
+      description: "Mini truck (MEDIUM) for loads up to 2 tons",
     },
   });
 
-  const containerTruck = await prisma.vehicleType.upsert({
-    where: { name: "Container Truck" },
+  const miniTruckLarge = await prisma.vehicleType.upsert({
+    where: { name: "Mini Truck Large" },
     update: {},
     create: {
-      name: "Container Truck",
-      description: "Large truck for heavy loads up to 20 tons",
+      name: "Mini Truck Large",
+      description: "Mini truck (LARGE) for loads up to 5 tons",
     },
   });
 
-  // Create Pricing Rules
+  // Create Pricing Rules (one per mini-truck size)
   await prisma.pricingRule.upsert({
-    where: { id: "pricing-mini" },
+    where: { id: "pricing-mini-small" },
     update: {},
     create: {
-      id: "pricing-mini",
-      vehicleTypeId: miniTruck.id,
+      id: "pricing-mini-small",
+      vehicleTypeId: miniTruckSmall.id,
       baseRate: 50,
       perKmRate: 3.5,
       perKgRate: 0.15,
@@ -131,30 +132,30 @@ async function main() {
   });
 
   await prisma.pricingRule.upsert({
-    where: { id: "pricing-cargo" },
+    where: { id: "pricing-mini-medium" },
     update: {},
     create: {
-      id: "pricing-cargo",
-      vehicleTypeId: cargoTruck.id,
-      baseRate: 100,
-      perKmRate: 5.0,
-      perKgRate: 0.10,
-      minPrice: 150,
+      id: "pricing-mini-medium",
+      vehicleTypeId: miniTruckMedium.id,
+      baseRate: 80,
+      perKmRate: 4.0,
+      perKgRate: 0.12,
+      minPrice: 120,
       surgeMultiplier: 1.0,
       isActive: true,
     },
   });
 
   await prisma.pricingRule.upsert({
-    where: { id: "pricing-container" },
+    where: { id: "pricing-mini-large" },
     update: {},
     create: {
-      id: "pricing-container",
-      vehicleTypeId: containerTruck.id,
-      baseRate: 200,
-      perKmRate: 8.0,
-      perKgRate: 0.08,
-      minPrice: 350,
+      id: "pricing-mini-large",
+      vehicleTypeId: miniTruckLarge.id,
+      baseRate: 120,
+      perKmRate: 5.0,
+      perKgRate: 0.10,
+      minPrice: 180,
       surgeMultiplier: 1.0,
       isActive: true,
     },
@@ -281,15 +282,15 @@ async function main() {
     update: {},
     create: {
       driverId: driver1.id,
-      typeId: cargoTruck.id,
+      typeId: miniTruckLarge.id,
       make: "Isuzu",
       model: "NPR",
       year: 2020,
       registrationNumber: "GR 1234-20",
-      capacity: 5000,
-      length: 6.0,
-      width: 2.2,
-      height: 2.5,
+      capacity: 4000,
+      length: 4.8,
+      width: 2.0,
+      height: 2.2,
       status: "available",
       isVerified: true,
     },
@@ -300,13 +301,13 @@ async function main() {
     update: {},
     create: {
       driverId: driver2.id,
-      typeId: miniTruck.id,
+      typeId: miniTruckMedium.id,
       make: "Toyota",
       model: "Dyna",
       year: 2021,
       registrationNumber: "GW 5678-21",
-      capacity: 2000,
-      length: 4.5,
+      capacity: 1800,
+      length: 4.2,
       width: 1.8,
       height: 2.0,
       status: "available",
@@ -319,24 +320,24 @@ async function main() {
     update: {},
     create: {
       driverId: driver3.id,
-      typeId: containerTruck.id,
-      make: "Sinotruk",
-      model: "Howo",
+      typeId: miniTruckSmall.id,
+      make: "Toyota",
+      model: "Hiace",
       year: 2019,
       registrationNumber: "GT 9012-19",
-      capacity: 20000,
-      length: 12.0,
-      width: 2.5,
-      height: 3.8,
+      capacity: 800,
+      length: 3.5,
+      width: 1.6,
+      height: 1.8,
       status: "available",
       isVerified: true,
     },
   });
 
   // Give each demo vehicle a main image (uploaded to Cloudinary).
-  await ensureVehicleImage(vehicle1, "Cargo Truck", "#2563eb");
-  await ensureVehicleImage(vehicle2, "Mini Truck", "#f59e0b");
-  await ensureVehicleImage(vehicle3, "Container Truck", "#059669");
+  await ensureVehicleImage(vehicle1, "Mini Truck Large", "#2563eb");
+  await ensureVehicleImage(vehicle2, "Mini Truck Medium", "#f59e0b");
+  await ensureVehicleImage(vehicle3, "Mini Truck Small", "#059669");
 
   // Create a demo request (only once — no unique key to upsert on)
   const existingDemoRequest = await prisma.transportationRequest.findFirst({

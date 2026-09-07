@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface AvailableRequest {
   id: string;
@@ -24,16 +24,17 @@ interface AvailableRequest {
   };
 }
 
+// Safe monetary formatting — never calls toFixed on undefined/null/Decimal.
+function formatMoney(value: number | null | undefined): string {
+  return `GHS ${Number(value ?? 0).toFixed(2)}`;
+}
+
 export default function AvailableRequestsPage() {
   const [requests, setRequests] = useState<AvailableRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const response = await fetch("/api/requests?status=pending");
       if (response.ok) {
@@ -45,7 +46,11 @@ export default function AvailableRequestsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchRequests();
+  }, [fetchRequests]);
 
   const handleAccept = async (requestId: string) => {
     setAccepting(requestId);
@@ -120,9 +125,9 @@ export default function AvailableRequestsPage() {
 
                 {/* Price & Action */}
                 <div className="text-right shrink-0">
-                  {request.estimatedPrice && (
+                  {request.estimatedPrice != null && (
                     <div className="text-xl font-bold text-primary mb-1">
-                      GHS {request.estimatedPrice.toFixed(2)}
+                      {formatMoney(request.estimatedPrice)}
                     </div>
                   )}
                   <div className="text-xs text-muted mb-3">

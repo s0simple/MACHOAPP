@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
+import { deriveVehicleSizeTier, deriveVehicleTypeName } from "@/lib/constants";
 
 interface VehicleImage {
   id: string;
@@ -20,6 +21,7 @@ interface Vehicle {
   length: number | null;
   width: number | null;
   height: number | null;
+  hasRefrigeration: boolean;
   status: string;
   isVerified: boolean;
   vehicleType: { name: string };
@@ -258,6 +260,9 @@ export default function VehiclesPage() {
                 {vehicle.length && (
                   <div>Dimensions: <span className="text-foreground">{vehicle.length}m × {vehicle.width}m × {vehicle.height}m</span></div>
                 )}
+                {vehicle.hasRefrigeration && (
+                  <div>Refrigeration: <span className="text-foreground">Available</span></div>
+                )}
                 <div className="flex items-center gap-2 flex-wrap">
                   {vehicle.isVerified ? (
                     <span className="badge badge-success">Verified</span>
@@ -309,16 +314,23 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
     model: "",
     year: "",
     registrationNumber: "",
-    typeId: "",
     capacity: "",
     color: "",
     length: "",
     width: "",
     height: "",
+    hasRefrigeration: false,
   });
   const [vehicleTypes, setVehicleTypes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // The vehicle type is derived from the maximum load capacity so the
+  // selected type always matches the capacity (SMALL → MEDIUM → LARGE).
+  const capacityNum = parseFloat(formData.capacity);
+  const hasValidCapacity = Number.isFinite(capacityNum) && capacityNum > 0;
+  const derivedTypeName = hasValidCapacity ? deriveVehicleTypeName(capacityNum) : null;
+  const derivedTier = hasValidCapacity ? deriveVehicleSizeTier(capacityNum) : null;
 
   useEffect(() => {
     fetch("/api/vehicle-types")
@@ -332,10 +344,18 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     setError("");
     try {
+      // Resolve the derived type name to its VehicleType id. The type is
+      // always derived from capacity, never chosen manually.
+      const derivedType = vehicleTypes.find((t) => t.name === derivedTypeName);
+      if (!derivedType) {
+        setError("Could not determine the vehicle type from the capacity. Please try again.");
+        setLoading(false);
+        return;
+      }
       const response = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, typeId: derivedType.id }),
       });
       if (response.ok) {
         onSuccess();
@@ -388,18 +408,13 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
         />
       </div>
       <div>
-        <label className="label">Vehicle Type</label>
-        <select
-          className="input"
-          value={formData.typeId}
-          onChange={(e) => setFormData({ ...formData, typeId: e.target.value })}
-          required
-        >
-          <option value="">Select type</option>
-          {vehicleTypes.map((type) => (
-            <option key={type.id} value={type.id}>{type.name}</option>
-          ))}
-        </select>
+        <label className="label">Vehicle Type (auto-derived)</label>
+        <div className={`input ${derivedTypeName ? "" : "text-muted"}`}>
+          {derivedTypeName ? `${derivedTypeName} (${derivedTier})` : "Enter capacity to determine type"}
+        </div>
+        <p className="text-xs text-muted mt-1">
+          The type is derived from the maximum load capacity: SMALL (Mini Truck Small) → MEDIUM (Mini Truck Medium) → LARGE (Mini Truck Large).
+        </p>
       </div>
       <div>
         <label className="label">Capacity (kg)</label>
@@ -463,6 +478,20 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
           onChange={(e) => setFormData({ ...formData, height: e.target.value })}
           placeholder="2.5"
         />
+      </div>
+      <div className="md:col-span-2">
+        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.hasRefrigeration}
+            onChange={(e) => setFormData({ ...formData, hasRefrigeration: e.target.checked })}
+            className="rounded"
+          />
+          Refrigeration capable
+        </label>
+        <p className="text-xs text-muted mt-1">
+          Check this if the vehicle has a functioning refrigerated compartment.
+        </p>
       </div>
       <button type="submit" className="btn btn-primary md:col-span-2" disabled={loading}>
         {loading ? "Adding..." : "Add Vehicle"}

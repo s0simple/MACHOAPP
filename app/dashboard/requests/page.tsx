@@ -21,6 +21,11 @@ interface Request {
   } | null;
 }
 
+// Safe monetary formatting — never calls toFixed on undefined/null/Decimal.
+function formatMoney(value: number | null | undefined): string {
+  return `GHS ${Number(value ?? 0).toFixed(2)}`;
+}
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,9 +157,9 @@ export default function RequestsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  {request.estimatedPrice && (
+                  {request.estimatedPrice != null && (
                     <div className="font-bold text-primary">
-                      GHS {request.estimatedPrice.toFixed(2)}
+                      {formatMoney(request.estimatedPrice)}
                     </div>
                   )}
                   <div className="text-xs text-muted mt-1">

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { deriveVehicleTypeName } from "./constants";
 
 interface PricingInput {
   distance: number; // km
@@ -66,6 +67,32 @@ export async function calculatePrice(input: PricingInput): Promise<PricingBreakd
     total: Math.round(total * 100) / 100,
     currency: "GHS",
   };
+}
+
+/**
+ * Resolve the active PricingRule for a shipment based on the goods weight.
+ * The smallest suitable vehicle type is derived from the weight (see
+ * lib/constants.ts); if that type has no active rule we fall back to any
+ * active rule so estimation never hard-fails. Returns null only when the
+ * database has no active pricing rules at all.
+ */
+export async function resolvePricingRuleForWeight(weightKg: number) {
+  const typeName = deriveVehicleTypeName(weightKg);
+
+  const derived = await prisma.pricingRule.findFirst({
+    where: {
+      isActive: true,
+      vehicleType: { name: typeName },
+    },
+    include: { vehicleType: { select: { name: true } } },
+  });
+  if (derived) return derived;
+
+  // Fallback: any active rule (e.g. seeded types were renamed).
+  return prisma.pricingRule.findFirst({
+    where: { isActive: true },
+    include: { vehicleType: { select: { name: true } } },
+  });
 }
 
 // Haversine formula for distance between two coordinates

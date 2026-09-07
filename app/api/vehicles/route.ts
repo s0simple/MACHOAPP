@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Build filter conditions
-    const where: any = {};
+    const where: Prisma.VehicleWhereInput = {};
     
     if (status) {
       where.status = status;
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { make, model, year, registrationNumber, typeId, capacity, color, length, width, height } = body;
+    const { make, model, year, registrationNumber, typeId, capacity, color, length, width, height, hasRefrigeration } = body;
 
     // Validate required fields
     if (!make || !model || !registrationNumber || !typeId || !capacity) {
@@ -181,6 +182,7 @@ export async function POST(request: Request) {
         length: length ? parseFloat(length) : null,
         width: width ? parseFloat(width) : null,
         height: height ? parseFloat(height) : null,
+        hasRefrigeration: Boolean(hasRefrigeration),
         status: "available",
         isVerified: false, // Requires admin verification
       },

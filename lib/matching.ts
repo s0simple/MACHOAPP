@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { calculateDistance } from "./pricing";
+import { calculateRouteDistance } from "./geo";
 
 interface MatchInput {
   pickupLat: number;
@@ -10,6 +10,9 @@ interface MatchInput {
   preferredVehicleType?: string;
   isFragile?: boolean;
   needsRefrigeration?: boolean;
+  length?: number;
+  width?: number;
+  height?: number;
 }
 
 interface MatchedDriver {
@@ -21,6 +24,7 @@ interface MatchedDriver {
   vehicleMake: string;
   vehicleModel: string;
   vehicleRegistration: string;
+  vehicleTypeId: string;
   vehicleTypeName: string;
   vehicleCapacity: number;
   estimatedPrice: number;
@@ -50,7 +54,9 @@ export async function findMatchingTrucks(input: MatchInput): Promise<MatchedDriv
         include: {
           vehicleType: true,
           images: {
-            where: { isMain: true },
+            // Prefer the main image; fall back to the first available image
+            // (by sortOrder) so a vehicle with images always shows one.
+            orderBy: [{ isMain: "desc" }, { sortOrder: "asc" }],
             take: 1,
             select: { url: true },
           },
@@ -66,18 +72,37 @@ export async function findMatchingTrucks(input: MatchInput): Promise<MatchedDriv
       // Safety floor: the vehicle must be able to carry the load.
       if (vehicle.capacity < input.weight) continue;
 
-      // Match on vehicle type (only enforced when a preference was given).
-      if (input.preferredVehicleType && vehicle.vehicleType.name !== input.preferredVehicleType) {
+      // Refrigeration requirement: only vehicles marked with refrigeration
+      // capability qualify when the shipment needs it.
+      if (input.needsRefrigeration && !vehicle.hasRefrigeration) {
         continue;
       }
 
-      // Trip distance (needed for pricing).
-      const tripDistance = calculateDistance(
-        input.pickupLat,
-        input.pickupLng,
-        input.destLat,
-        input.destLng
+      // Dimensions: the vehicle bed must fit every supplied dimension of the
+      // largest item. Only enforced when the caller provides dimensions.
+      if (input.length && vehicle.length && vehicle.length < input.length) continue;
+      if (input.width && vehicle.width && vehicle.width < input.width) continue;
+      if (input.height && vehicle.height && vehicle.height < input.height) continue;
+      // If a dimension is missing on the vehicle we can not confirm fit, so
+      // exclude it rather than risk an oversized load.
+      if ((input.length && !vehicle.length) || (input.width && !vehicle.width) || (input.height && !vehicle.height)) {
+        continue;
+      }
+
+      // Type preference: a preference means "at least this size", never an
+      // exact type — a LARGE mini-truck can serve a SMALL/MEDIUM request as
+      // long as its actual capacity covers the load (already checked above).
+      // The capacity floor is the sole hard criterion, so no extra filter
+      // is applied here.
+
+      // Trip distance (needed for pricing). OSRM road distance with a
+      // Haversine fallback; the route cache means this upstream call runs at
+      // most once per matching request.
+      const { route } = await calculateRouteDistance(
+        { lat: input.pickupLat, lng: input.pickupLng },
+        { lat: input.destLat, lng: input.destLng }
       );
+      const tripDistance = route.distanceKm;
 
       // Get pricing
       const pricingRule = await prisma.pricingRule.findFirst({
@@ -111,6 +136,7 @@ export async function findMatchingTrucks(input: MatchInput): Promise<MatchedDriv
         vehicleMake: vehicle.make,
         vehicleModel: vehicle.model,
         vehicleRegistration: vehicle.registrationNumber,
+        vehicleTypeId: vehicle.typeId,
         vehicleTypeName: vehicle.vehicleType.name,
         vehicleCapacity: vehicle.capacity,
         estimatedPrice: Math.round(estimatedPrice * 100) / 100,

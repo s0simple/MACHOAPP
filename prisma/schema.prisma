@@ -131,9 +131,11 @@ model Vehicle {
   height             Float?
   status             String         @default("available")
   isVerified         Boolean        @default(false)
+  hasRefrigeration   Boolean        @default(false)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   trips              Trip[]
+  preferredRequests  TransportationRequest[]
   images             VehicleImage[]
   driver             Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
   vehicleType        VehicleType    @relation(fields: [typeId], references: [id])
@@ -172,12 +174,21 @@ model TransportationRequest {
   quantity           Int       @default(1)
   isFragile          Boolean   @default(false)
   needsRefrigeration Boolean   @default(false)
+  // Scheduling (Ghana is UTC+0 year-round, so instants equal local wall time)
+  pickupAt           DateTime?
+  deliveryDeadline   DateTime?
+  // "transport_only" | "loading_transport" | "loading_transport_unloading"
+  serviceType        String    @default("transport_only")
+  specialInstructions String?
+  // Truck chosen by the passenger (optional — null means any suitable truck).
+  preferredVehicleId String?
   distance           Float
   estimatedPrice     Float?
   status             String    @default("pending")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   passenger          Passenger @relation(fields: [passengerId], references: [id])
+  preferredVehicle   Vehicle?  @relation(fields: [preferredVehicleId], references: [id])
   trip               Trip?
 
   @@map("transportation_requests")
