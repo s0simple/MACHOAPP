@@ -33,11 +33,9 @@ export async function GET() {
     // Seed default vehicle types if the table is empty (first run).
     if (types.length === 0) {
       const defaults = [
-        { name: "Mini Truck", description: "Small truck for light loads up to 2 tons" },
-        { name: "Cargo Truck", description: "Medium truck for loads up to 5 tons" },
-        { name: "Container Truck", description: "Large truck for heavy loads up to 20 tons" },
-        { name: "Pickup Truck", description: "Pickup for small loads up to 1 ton" },
-        { name: "Refrigerated Truck", description: "Cold-chain truck for perishable goods" },
+        { name: "Mini Truck Small", description: "Mini truck (SMALL) for loads up to 1 ton" },
+        { name: "Mini Truck Medium", description: "Mini truck (MEDIUM) for loads up to 2 tons" },
+        { name: "Mini Truck Large", description: "Mini truck (LARGE) for loads up to 5 tons" },
       ];
 
       for (const dt of defaults) {
