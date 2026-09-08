@@ -43,6 +43,7 @@ export default function VehiclesPage() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<VerificationFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   // Bump the token to re-run the fetch effect after mutations.
@@ -113,6 +114,28 @@ export default function VehiclesPage() {
     }
   };
 
+  // Driver-only: delete a vehicle (blocked server-side if it has trip history).
+  const deleteVehicle = async (vehicleId: string) => {
+    if (!window.confirm("Delete this vehicle? This cannot be undone.")) return;
+    setUpdatingId(vehicleId);
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setEditingVehicle((current) => (current?.id === vehicleId ? null : current));
+        refresh();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete vehicle");
+      }
+    } catch {
+      alert("Something went wrong");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available": return <span className="badge badge-success">Available</span>;
@@ -175,6 +198,19 @@ export default function VehiclesPage() {
         <div className="card">
           <h2 className="font-semibold mb-4">Add New Vehicle</h2>
           <VehicleForm onSuccess={() => { setShowForm(false); refresh(); }} />
+        </div>
+      )}
+
+      {/* Edit Vehicle Form (drivers only) */}
+      {editingVehicle && !isAdmin && (
+        <div className="card">
+          <h2 className="font-semibold mb-4">Edit Vehicle</h2>
+          <VehicleForm
+            initial={editingVehicle}
+            vehicleId={editingVehicle.id}
+            onSuccess={() => { setEditingVehicle(null); refresh(); }}
+            onCancel={() => setEditingVehicle(null)}
+          />
         </div>
       )}
 
@@ -288,6 +324,28 @@ export default function VehiclesPage() {
                       </button>
                     )
                   )}
+                  {!isAdmin && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowForm(false);
+                          setEditingVehicle(vehicle);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        disabled={updatingId === vehicle.id}
+                        className="btn btn-outline btn-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteVehicle(vehicle.id)}
+                        disabled={updatingId === vehicle.id}
+                        className="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -308,19 +366,30 @@ export default function VehiclesPage() {
   );
 }
 
-function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
-  const [formData, setFormData] = useState({
-    make: "",
-    model: "",
-    year: "",
-    registrationNumber: "",
-    capacity: "",
-    color: "",
-    length: "",
-    width: "",
-    height: "",
-    hasRefrigeration: false,
-  });
+function VehicleForm({
+  initial,
+  vehicleId,
+  onSuccess,
+  onCancel,
+}: {
+  initial?: Vehicle | null;
+  vehicleId?: string;
+  onSuccess: () => void;
+  onCancel?: () => void;
+}) {
+  // Pre-fill from `initial` when editing an existing vehicle.
+  const [formData, setFormData] = useState(() => ({
+    make: initial?.make ?? "",
+    model: initial?.model ?? "",
+    year: initial?.year ? String(initial.year) : "",
+    registrationNumber: initial?.registrationNumber ?? "",
+    capacity: initial?.capacity ? String(initial.capacity) : "",
+    color: initial?.color ?? "",
+    length: initial?.length ? String(initial.length) : "",
+    width: initial?.width ? String(initial.width) : "",
+    height: initial?.height ? String(initial.height) : "",
+    hasRefrigeration: initial?.hasRefrigeration ?? false,
+  }));
   const [vehicleTypes, setVehicleTypes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -352,16 +421,22 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
         setLoading(false);
         return;
       }
-      const response = await fetch("/api/vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, typeId: derivedType.id }),
-      });
+      const isEdit = Boolean(vehicleId);
+      const response = await fetch(
+        isEdit ? `/api/vehicles/${vehicleId}` : "/api/vehicles",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isEdit ? formData : { ...formData, typeId: derivedType.id }
+          ),
+        }
+      );
       if (response.ok) {
         onSuccess();
       } else {
         const data = await response.json();
-        setError(data.error || "Failed to add vehicle");
+        setError(data.error || (isEdit ? "Failed to update vehicle" : "Failed to add vehicle"));
       }
     } catch {
       setError("Something went wrong");
@@ -493,9 +568,16 @@ function VehicleForm({ onSuccess }: { onSuccess: () => void }) {
           Check this if the vehicle has a functioning refrigerated compartment.
         </p>
       </div>
-      <button type="submit" className="btn btn-primary md:col-span-2" disabled={loading}>
-        {loading ? "Adding..." : "Add Vehicle"}
-      </button>
+      <div className="md:col-span-2 flex gap-2">
+        <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
+          {loading ? "Saving..." : vehicleId ? "Save Changes" : "Add Vehicle"}
+        </button>
+        {onCancel && (
+          <button type="button" className="btn btn-outline" onClick={onCancel} disabled={loading}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }
