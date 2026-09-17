@@ -34,7 +34,9 @@ export default function EarningsPage() {
       const response = await fetch("/api/trips");
       if (response.ok) {
         const trips = await response.json();
-        const completedTrips = trips.filter((t: { status: string }) => t.status === "completed");
+        // /api/trips returns { trips: [...] } — accept either shape safely.
+        const tripsArray = Array.isArray(trips) ? trips : Array.isArray(trips?.trips) ? trips.trips : [];
+        const completedTrips = tripsArray.filter((t: { status: string }) => t.status === "completed");
         const totalEarnings = completedTrips.reduce(
           (sum: number, t: { driverEarning: number | null }) => sum + (t.driverEarning || 0),
           0
