@@ -53,6 +53,31 @@ export function deriveVehicleTypeName(weightKg: number): string {
 }
 
 /**
+ * Service area: Greater Accra Region (approximate bounding box). The app
+ * currently operates only within Greater Accra, so geocoding results, the
+ * map view, and server-side coordinate validation are all constrained to
+ * this box. A rectangle is intentionally used instead of the exact region
+ * polygon — simple to share between client and server, and edge slivers of
+ * neighbouring regions are acceptable for a service area.
+ */
+export const GREATER_ACCRA_BOUNDS = {
+  minLat: 5.44,
+  maxLat: 5.98, // excludes Eastern Region towns (Nsawam/Suhum) just north
+  minLng: -0.55,
+  maxLng: 0.7,
+} as const;
+
+/** True when a coordinate falls inside the Greater Accra service area. */
+export function isWithinGreaterAccra(lat: number, lng: number): boolean {
+  return (
+    lat >= GREATER_ACCRA_BOUNDS.minLat &&
+    lat <= GREATER_ACCRA_BOUNDS.maxLat &&
+    lng >= GREATER_ACCRA_BOUNDS.minLng &&
+    lng <= GREATER_ACCRA_BOUNDS.maxLng
+  );
+}
+
+/**
  * Size tier for the SMALL → MEDIUM → LARGE model, derived from the same
  * weight thresholds as `deriveVehicleTypeName`. Used for display labels.
  */

@@ -1,3 +1,5 @@
+import { GREATER_ACCRA_BOUNDS, isWithinGreaterAccra } from "@/lib/constants";
+
 /**
  * Free/open geocoding + routing helpers.
  *
@@ -143,10 +145,15 @@ export async function searchPlaces(query: string, limit = 5): Promise<PlaceResul
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
+  // Hard-limit results to the Greater Accra service area: `viewbox` +
+  // `bounded=1` excludes anything outside the box (Ghana-wide results would
+  // otherwise be returned via `countrycodes=gh`).
+  const { minLat, maxLat, minLng, maxLng } = GREATER_ACCRA_BOUNDS;
   const url =
     `${NOMINATIM_BASE}/search?q=${encodeURIComponent(trimmed)}` +
     `&format=jsonv2&addressdetails=0&limit=${limit}` +
-    `&countrycodes=gh`; // App is Ghana-focused; bias results to Ghana.
+    `&countrycodes=gh` +
+    `&viewbox=${minLng},${maxLat},${maxLng},${minLat}&bounded=1`;
 
   const data = await scheduleGeocode(async () => {
     const res = await fetchWithTimeout(url);
@@ -160,7 +167,11 @@ export async function searchPlaces(query: string, limit = 5): Promise<PlaceResul
       lat: parseFloat(p.lat),
       lng: parseFloat(p.lon),
     }))
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+    // Hard service-area filter: never surface a place outside Greater Accra,
+    // even if Nominatim's viewbox edge cases or a stale cache entry let one
+    // through. This guarantees the dropdown only offers in-area locations.
+    .filter((p) => isWithinGreaterAccra(p.lat, p.lng));
 
   cacheSet(cacheKey, results);
   return results;

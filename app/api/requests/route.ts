@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { calculateRouteDistance } from "@/lib/geo";
 import { calculatePrice, resolvePricingRuleForWeight } from "@/lib/pricing";
-import { GOODS_TYPES, LIMITS, SERVICE_TYPE_VALUES } from "@/lib/constants";
+import { GOODS_TYPES, LIMITS, SERVICE_TYPE_VALUES, isWithinGreaterAccra } from "@/lib/constants";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 // Empty paginated result, used when a role-scoped user owns no requests.
@@ -137,6 +137,17 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Valid pickup and destination coordinates are required" },
+        { status: 400 }
+      );
+    }
+
+    // Service area: the app currently operates only within Greater Accra.
+    if (
+      !isWithinGreaterAccra(pickupLat, pickupLng) ||
+      !isWithinGreaterAccra(destLat, destLng)
+    ) {
+      return NextResponse.json(
+        { error: "We currently operate only within Greater Accra. Please choose pickup and destination locations inside Greater Accra." },
         { status: 400 }
       );
     }

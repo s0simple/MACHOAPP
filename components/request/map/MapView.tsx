@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { SelectedPlace } from "@/lib/request-form-types";
+import { GREATER_ACCRA_BOUNDS } from "@/lib/constants";
 
 interface MapViewProps {
   pickup: SelectedPlace | null;
@@ -63,11 +64,15 @@ export default function MapView({ pickup, dest, height = 300 }: MapViewProps) {
     pickupIconRef.current = createPin(PICKUP_COLOR);
     destIconRef.current = createPin(DEST_COLOR);
 
-    // Default to Ghana (Accra) until a location is picked.
+    // Default to Accra until a location is picked. The map is locked to the
+    // Greater Accra service area — users cannot pan/zoom outside it.
+    const b = GREATER_ACCRA_BOUNDS;
     const map = L.map(containerRef.current, {
       center: [5.6037, -0.187],
       zoom: 12,
       scrollWheelZoom: false,
+      maxBounds: L.latLngBounds([b.minLat, b.minLng], [b.maxLat, b.maxLng]),
+      maxBoundsViscosity: 1.0, // hard-stop dragging outside the bounds
     });
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,

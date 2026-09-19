@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import LocationSearch from "@/components/request/LocationSearch";
 import RequestMap from "@/components/request/RequestMap";
 import type { SelectedPlace, EstimateResult } from "@/lib/request-form-types";
-import { GOODS_TYPES, LIMITS, SERVICE_TYPES, SERVICE_TYPE_VALUES, deriveVehicleTypeName, type ServiceType } from "@/lib/constants";
+import { GOODS_TYPES, LIMITS, SERVICE_TYPES, SERVICE_TYPE_VALUES, deriveVehicleTypeName, isWithinGreaterAccra, type ServiceType } from "@/lib/constants";
 
 const STEPS = [
   { num: 1, label: "Locations" },
@@ -14,6 +14,10 @@ const STEPS = [
   { num: 4, label: "Choose Truck & Price" },
   { num: 5, label: "Review & Submit" },
 ] as const;
+
+/** Shown when a chosen location falls outside the Greater Accra service area. */
+const OUT_OF_AREA_MESSAGE =
+  "We currently operate only within Greater Accra. Please choose a location inside Greater Accra.";
 
 interface MatchedTruck {
   driverId: string;
@@ -176,8 +180,17 @@ export default function NewRequestPage() {
 
   const validateLocations = (): boolean => {
     const next: Errors = {};
-    if (!pickup) next.pickup = "Please search for and select a pickup location.";
-    if (!dest) next.dest = "Please search for and select a destination.";
+    if (!pickup) {
+      next.pickup = "Please search for and select a pickup location.";
+    } else if (!isWithinGreaterAccra(pickup.lat, pickup.lng)) {
+      // Service-area gate: block progression to step 2 when out of area.
+      next.pickup = OUT_OF_AREA_MESSAGE;
+    }
+    if (!dest) {
+      next.dest = "Please search for and select a destination.";
+    } else if (!isWithinGreaterAccra(dest.lat, dest.lng)) {
+      next.dest = OUT_OF_AREA_MESSAGE;
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) {
       scrollTop();
@@ -489,6 +502,9 @@ export default function NewRequestPage() {
                   onClear={() => setPickup(null)}
                 />
                 {errors.pickup && <p className="text-xs text-danger mt-1">{errors.pickup}</p>}
+                {pickup && !isWithinGreaterAccra(pickup.lat, pickup.lng) && !errors.pickup && (
+                  <p className="text-xs text-danger mt-1">{OUT_OF_AREA_MESSAGE}</p>
+                )}
               </div>
               <div>
                 <LocationSearch
@@ -502,6 +518,9 @@ export default function NewRequestPage() {
                   onClear={() => setDest(null)}
                 />
                 {errors.dest && <p className="text-xs text-danger mt-1">{errors.dest}</p>}
+                {dest && !isWithinGreaterAccra(dest.lat, dest.lng) && !errors.dest && (
+                  <p className="text-xs text-danger mt-1">{OUT_OF_AREA_MESSAGE}</p>
+                )}
               </div>
             </div>
           </div>

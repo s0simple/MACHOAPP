@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { findMatchingTrucks } from "@/lib/matching";
+import { isWithinGreaterAccra } from "@/lib/constants";
 
 /**
  * Find trucks matching a shipment. Used by the New Request flow's
@@ -40,6 +41,17 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Missing required fields: pickupLat, pickupLng, destLat, destLng, weight" },
+        { status: 400 }
+      );
+    }
+
+    // Service area: the app currently operates only within Greater Accra.
+    if (
+      !isWithinGreaterAccra(pickupLat, pickupLng) ||
+      !isWithinGreaterAccra(destLat, destLng)
+    ) {
+      return NextResponse.json(
+        { error: "We currently operate only within Greater Accra. Please choose pickup and destination locations inside Greater Accra." },
         { status: 400 }
       );
     }
