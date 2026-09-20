@@ -28,7 +28,9 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      // replace() so the login page does not linger in history (back button
+      // would otherwise return to the form after signing in).
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

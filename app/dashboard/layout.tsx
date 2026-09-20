@@ -156,18 +156,47 @@ export default function DashboardLayout({
     | "admin"
     | undefined;
 
+  // When the hook reports "no session", confirm with a fresh request before
+  // redirecting. Right after login the hook's client-side cache can still
+  // hold the stale logged-out value, and redirecting on that stale value
+  // bounces the user back to /login even though their cookie is valid (the
+  // "have to sign in twice" bug). A direct fetch to get-session reads the
+  // real cookie, so it settles the question definitively.
+  const [verifying, setVerifying] = useState(false);
   useEffect(() => {
-    if (!isPending && !session) {
-      router.replace("/login");
-    }
+    if (isPending || session) return;
+
+    let cancelled = false;
+    setVerifying(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/get-session", { credentials: "include" });
+        const fresh = await res.json().catch(() => null);
+        if (!cancelled && !fresh?.user) {
+          // Fresh check also says signed out — safe to redirect.
+          router.replace("/login");
+        }
+        // If a session exists, do nothing: the hook will pick it up and
+        // re-render with the real session.
+      } catch {
+        if (!cancelled) router.replace("/login");
+      } finally {
+        if (!cancelled) setVerifying(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isPending, session, router]);
 
-  // While the session is being resolved, avoid flashing role-specific UI.
-  if (isPending || !session) {
+  // While the session is being resolved (or freshly verified), avoid
+  // flashing role-specific UI or redirecting prematurely.
+  if (isPending || verifying || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <p className="text-muted text-sm">
-          {isPending ? "Loading…" : "Redirecting to sign in…"}
+          {isPending || verifying ? "Loading…" : "Redirecting to sign in…"}
         </p>
       </div>
     );

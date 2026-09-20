@@ -44,7 +44,9 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/dashboard");
+      // replace() so the register page does not linger in history (back
+      // button would otherwise return to the form after signing up).
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
