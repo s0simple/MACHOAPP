@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { ACTIVE_TRIP_STATUSES } from "@/lib/constants";
+
+// Whether both parties in a trip may see each other's phone number. Numbers
+// are only shared while a trip is active (assigned / in_transit) so passenger
+// and driver can call each other off-app.
+function isActiveTrip(status: string): boolean {
+  return (ACTIVE_TRIP_STATUSES as readonly string[]).includes(status);
+}
 
 // Empty paginated result, used when a role-scoped user owns no trips.
 // Fail-closed: a missing role profile must never fall through to an
@@ -95,8 +103,39 @@ export async function GET(request: Request) {
 
     const total = await prisma.trip.count({ where });
 
+    // Gate phone numbers by role + trip status. A passenger only ever sees
+    // the assigned driver's phone while the trip is active; a driver only
+    // sees the customer's phone under the same condition. Admins keep full
+    // visibility (platform moderation).
+    const scopedTrips = trips.map((trip) => {
+      if (session.user.role === "passenger") {
+        return {
+          ...trip,
+          driver: {
+            ...trip.driver,
+            phone: isActiveTrip(trip.status) ? trip.driver.phone : null,
+          },
+        };
+      }
+      if (session.user.role === "driver") {
+        return {
+          ...trip,
+          request: {
+            ...trip.request,
+            passenger: {
+              ...trip.request.passenger,
+              phone: isActiveTrip(trip.status)
+                ? trip.request.passenger.phone
+                : null,
+            },
+          },
+        };
+      }
+      return trip;
+    });
+
     return NextResponse.json({
-      trips,
+      trips: scopedTrips,
       pagination: {
         page,
         limit,
@@ -157,7 +196,10 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Verify user has permission to update this trip
+    // Verify user has permission to update this trip. Drivers may only
+    // mutate their own trips; passengers have no write access at all (they
+    // manage orders through the request cancellation flow); admins may act
+    // on any trip.
     if (session.user.role === "driver") {
       const driver = await prisma.driver.findUnique({
         where: { userId: session.user.id },
@@ -168,6 +210,11 @@ export async function PATCH(request: Request) {
           { status: 403 }
         );
       }
+    } else if (session.user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only the assigned driver can update this trip" },
+        { status: 403 }
+      );
     }
 
     // Update trip
@@ -200,10 +247,16 @@ export async function PATCH(request: Request) {
         data: { status: status === "completed" ? "completed" : "cancelled" },
       });
 
-      // Update vehicle status back to available
+      // Release the vehicle and re-list the driver as available so their
+      // truck is bookable again. (Previously the driver stayed hidden from
+      // new work after a cancellation.)
       await prisma.vehicle.update({
         where: { id: trip.vehicleId },
         data: { status: "available" },
+      });
+      await prisma.driver.update({
+        where: { id: trip.driverId },
+        data: { isAvailable: true },
       });
     }
 

@@ -75,7 +75,6 @@ function tomorrowAtNine(): string {
 
 interface GoodsFields {
   goodsType: string;
-  quantity: string;
   weight: string;
   description: string;
   lengthM: string;
@@ -98,7 +97,6 @@ export default function NewRequestPage() {
 
   const [goods, setGoods] = useState<GoodsFields>({
     goodsType: "",
-    quantity: "1",
     weight: "",
     description: "",
     lengthM: "",
@@ -128,7 +126,6 @@ export default function NewRequestPage() {
   const topRef = useRef<HTMLDivElement>(null);
 
   const weightNum = parseFloat(goods.weight);
-  const qtyNum = parseInt(goods.quantity, 10);
   const dims = useMemo(() => {
     const toVal = (s: string) => {
       if (!s.trim()) return undefined;
@@ -153,10 +150,7 @@ export default function NewRequestPage() {
     goods.goodsType.trim() !== "" &&
     Number.isFinite(weightNum) &&
     weightNum > 0 &&
-    weightNum <= LIMITS.maxWeightKg &&
-    Number.isInteger(qtyNum) &&
-    qtyNum >= 1 &&
-    qtyNum <= LIMITS.maxQuantity;
+    weightNum <= LIMITS.maxWeightKg;
 
   const derivedTypeName = useMemo(() => {
     if (!Number.isFinite(weightNum) || weightNum <= 0) return "Mini Truck";
@@ -202,9 +196,6 @@ export default function NewRequestPage() {
   const validateGoods = (): boolean => {
     const next: Errors = {};
     if (!goods.goodsType) next.goodsType = "Select a goods type.";
-    if (!Number.isInteger(qtyNum) || qtyNum < 1 || qtyNum > LIMITS.maxQuantity) {
-      next.quantity = `Quantity must be a whole number from 1 to ${LIMITS.maxQuantity}.`;
-    }
     if (!Number.isFinite(weightNum) || weightNum <= 0 || weightNum > LIMITS.maxWeightKg) {
       next.weight = `Weight must be greater than 0 and at most ${LIMITS.maxWeightKg} kg.`;
     }
@@ -371,7 +362,6 @@ export default function NewRequestPage() {
         goodsType: goods.goodsType,
         goodsDescription: goods.description.trim() || null,
         weight: weightNum,
-        quantity: qtyNum,
         isFragile: goods.isFragile,
         needsRefrigeration: goods.needsRefrigeration,
         specialInstructions: goods.specialInstructions.trim() || null,
@@ -551,14 +541,12 @@ export default function NewRequestPage() {
                 {errors.goodsType && <p className="text-xs text-danger mt-1">{errors.goodsType}</p>}
               </div>
               <div>
-                <label className="label">Quantity</label>
-                <input name="quantity" type="number" min="1" max={LIMITS.maxQuantity} step="1" value={goods.quantity} onChange={handleGoodsChange} className="input" />
-                {errors.quantity && <p className="text-xs text-danger mt-1">{errors.quantity}</p>}
-              </div>
-              <div>
-                <label className="label">Estimated Weight (kg)</label>
+                <label className="label">Total weight (kg)</label>
                 <input name="weight" type="number" min="0.01" max={LIMITS.maxWeightKg} step="any" value={goods.weight} onChange={handleGoodsChange} className="input" placeholder="500" />
                 {errors.weight && <p className="text-xs text-danger mt-1">{errors.weight}</p>}
+                {!errors.weight && (
+                  <p className="text-xs text-muted mt-1">Combined weight of everything you're moving. This drives the price and truck size.</p>
+                )}
               </div>
               <div>
                 <label className="label">Description (optional)</label>
@@ -853,8 +841,7 @@ export default function NewRequestPage() {
                 </dd>
               </div>
               <div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Goods</dt><dd className="font-medium">{goods.goodsType}</dd></div>
-              <div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Quantity</dt><dd className="font-medium">{qtyNum}</dd></div>
-              <div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Weight</dt><dd className="font-medium">{Math.round(weightNum).toLocaleString()} kg</dd></div>
+              <div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Total weight</dt><dd className="font-medium">{Math.round(weightNum).toLocaleString()} kg</dd></div>
               {goods.description.trim() && (<div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Description</dt><dd className="font-medium">{goods.description.trim()}</dd></div>)}
               {dims && dims.hasAll && (<div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Dimensions</dt><dd className="font-medium">{dims.lengthM} m x {dims.widthM} m x {dims.heightM} m</dd></div>)}
               <div className="py-3 grid sm:grid-cols-[180px_1fr] gap-1"><dt className="text-muted">Fragile</dt><dd className="font-medium">{goods.isFragile ? "Yes" : "No"}</dd></div>

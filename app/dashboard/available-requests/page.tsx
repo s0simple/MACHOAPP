@@ -12,7 +12,6 @@ interface AvailableRequest {
   length: number | null;
   width: number | null;
   height: number | null;
-  quantity: number;
   isFragile: boolean;
   needsRefrigeration: boolean;
   distance: number | null;

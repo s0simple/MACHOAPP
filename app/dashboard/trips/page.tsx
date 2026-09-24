@@ -16,6 +16,7 @@ interface Trip {
     goodsType: string;
   };
   driver: {
+    phone: string | null;
     user: { name: string };
   };
   vehicle: {
@@ -45,6 +46,28 @@ export default function TripsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // The API only reveals the driver's phone while the trip is active, so
+  // this link simply does not render once a trip is completed/cancelled.
+  const CallDriver = ({ phone, name }: { phone: string | null; name: string }) => {
+    if (!phone) return null;
+    return (
+      <a
+        href={`tel:${phone.replace(/[^0-9+]/g, "")}`}
+        className="text-primary text-xs font-medium hover:underline flex items-center gap-1"
+        title={`Call ${name}`}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+          />
+        </svg>
+        Call {phone}
+      </a>
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -98,7 +121,12 @@ export default function TripsPage() {
                   <td className="text-sm">
                     {trip.request.pickupAddress} → {trip.request.destAddress}
                   </td>
-                  <td className="text-sm">{trip.driver.user.name}</td>
+                  <td className="text-sm">
+                    {trip.driver.user.name}
+                    <div className="mt-1">
+                      <CallDriver phone={trip.driver.phone} name={trip.driver.user.name} />
+                    </div>
+                  </td>
                   <td className="text-sm">
                     {trip.vehicle.make} {trip.vehicle.model}
                     <div className="text-xs text-muted">

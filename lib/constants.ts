@@ -26,10 +26,44 @@ export type ServiceType = keyof typeof SERVICE_TYPES;
 
 export const SERVICE_TYPE_VALUES = Object.keys(SERVICE_TYPES) as ServiceType[];
 
+/**
+ * Reasons a passenger can choose when cancelling a still-pending request.
+ * Shared between the cancel API (validation) and the cancel modal (options)
+ * so the two can never drift. The final "Other" option reveals an optional
+ * free-text note.
+ */
+export const CANCELLATION_REASONS = [
+  "Changed my plans",
+  "Driver is taking too long",
+  "Found another option",
+  "Price is too high",
+  "Ordered by mistake",
+  "Duplicate request",
+  "Other",
+] as const;
+
+export type CancellationReason = (typeof CANCELLATION_REASONS)[number];
+
+/**
+ * Request statuses in which a passenger is still allowed to cancel. A driver
+ * having accepted a request creates a Trip, so cancellation is locked out
+ * from that point on (the customer can no longer withdraw the order).
+ */
+export const CANCELLABLE_REQUEST_STATUSES = ["pending"] as const;
+
+/** Max length for the optional free-text cancellation note. */
+export const MAX_CANCELLATION_NOTE_LENGTH = 500;
+
+/**
+ * Trip statuses during which the passenger and driver are allowed to see each
+ * other's phone number so they can call each other off-app. Numbers are hidden
+ * again once the trip is completed or cancelled.
+ */
+export const ACTIVE_TRIP_STATUSES = ["assigned", "in_transit"] as const;
+
 /** Numeric input limits enforced on both client and server. */
 export const LIMITS = {
   maxWeightKg: 5_000, // matches the largest mini-truck type (Mini Truck Large)
-  maxQuantity: 1000,
   maxDimensionM: 15,
   maxAddressLength: 300,
   maxDescriptionLength: 1000,

@@ -360,7 +360,6 @@ async function main() {
         length: 2.0,
         width: 1.5,
         height: 1.2,
-        quantity: 10,
         isFragile: true,
         distance: 248,
         estimatedPrice: 485.5,

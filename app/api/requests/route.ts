@@ -4,8 +4,14 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { calculateRouteDistance } from "@/lib/geo";
 import { calculatePrice, resolvePricingRuleForWeight } from "@/lib/pricing";
-import { GOODS_TYPES, LIMITS, SERVICE_TYPE_VALUES, isWithinGreaterAccra } from "@/lib/constants";
+import { GOODS_TYPES, LIMITS, SERVICE_TYPE_VALUES, isWithinGreaterAccra, ACTIVE_TRIP_STATUSES } from "@/lib/constants";
 import type { Prisma } from "@/lib/generated/prisma/client";
+
+// Phone numbers are shared between a passenger and their assigned driver
+// only while the trip is active (assigned / in_transit).
+function isActiveTrip(status: string): boolean {
+  return (ACTIVE_TRIP_STATUSES as readonly string[]).includes(status);
+}
 
 // Empty paginated result, used when a role-scoped user owns no requests.
 // Fail-closed: a missing role profile must never fall through to an
@@ -77,7 +83,6 @@ export async function POST(request: Request) {
     const destLat = num(body.destLat);
     const destLng = num(body.destLng);
     const weight = num(body.weight);
-    const quantity = Math.floor(num(body.quantity) ?? 1);
     const length = num(body.length);
     const width = num(body.width);
     const height = num(body.height);
@@ -156,14 +161,6 @@ export async function POST(request: Request) {
     if (weight === undefined || weight <= 0 || weight > LIMITS.maxWeightKg) {
       return NextResponse.json(
         { error: `Weight must be greater than 0 and at most ${LIMITS.maxWeightKg} kg` },
-        { status: 400 }
-      );
-    }
-
-    // Quantity
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > LIMITS.maxQuantity) {
-      return NextResponse.json(
-        { error: `Quantity must be between 1 and ${LIMITS.maxQuantity}` },
         { status: 400 }
       );
     }
@@ -335,7 +332,6 @@ export async function POST(request: Request) {
         length: length ?? null,
         width: width ?? null,
         height: height ?? null,
-        quantity,
         isFragile,
         needsRefrigeration,
         pickupAt: pickupAt ?? null,
@@ -487,10 +483,40 @@ export async function GET(request: Request) {
     });
 
     const total = await prisma.transportationRequest.count({ where });
-    const requestsData =
-      session.user.role === "driver"
-        ? requests.map((r) => ({ ...r, estimatedPrice: null }))
-        : requests;
+
+    // Role-scoped field exposure:
+    //  - Drivers never see the price of marketplace requests.
+    //  - Passengers see their assigned driver's phone ONLY while the trip is
+    //    active (so they can call each other); it is hidden otherwise.
+    //  - Drivers never see the passenger's phone on this (browse) endpoint;
+    //    they get it from their own trip list once assigned.
+    const requestsData = requests.map((r) => {
+      if (session.user.role === "driver") {
+        return {
+          ...r,
+          estimatedPrice: null,
+          passenger: r.passenger
+            ? { ...r.passenger, phone: null }
+            : r.passenger,
+        };
+      }
+      if (session.user.role === "passenger") {
+        const tripActive = r.trip ? isActiveTrip(r.trip.status) : false;
+        return {
+          ...r,
+          trip: r.trip
+            ? {
+                ...r.trip,
+                driver: {
+                  ...r.trip.driver,
+                  phone: tripActive ? r.trip.driver.phone : null,
+                },
+              }
+            : r.trip,
+        };
+      }
+      return r;
+    });
 
     return NextResponse.json({
       requests: requestsData,

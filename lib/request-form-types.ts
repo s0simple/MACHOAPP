@@ -14,7 +14,6 @@ export interface SelectedPlace {
 /** Non-empty numeric form fields, kept as strings while the user types. */
 export interface GoodsFormState {
   goodsType: string;
-  quantity: string;
   weight: string;
   description: string;
   lengthM: string;

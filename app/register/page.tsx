@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,14 @@ export default function RegisterPage() {
       return;
     }
 
+    // Phone is required: passengers and drivers need to be able to call
+    // each other off-app once a trip is active.
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone.replace(/\D/g, "").length < 7) {
+      setError("Enter a valid phone number");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -42,6 +51,19 @@ export default function RegisterPage() {
       if (signUpError) {
         setError(signUpError.message || "Failed to create account");
         return;
+      }
+
+      // Persist the phone onto the freshly-created role profile. Best-effort:
+      // registration has already succeeded, and users can also set it later
+      // from the profile prompt, so a failure here must not block signup.
+      try {
+        await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: trimmedPhone }),
+        });
+      } catch {
+        // ignore — profile can be completed later
       }
 
       // replace() so the register page does not linger in history (back
@@ -170,6 +192,24 @@ export default function RegisterPage() {
                 placeholder="Confirm your password"
                 required
               />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="label">
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="input"
+                placeholder="e.g. 024 123 4567"
+                required
+              />
+              <p className="text-xs text-muted mt-1">
+                Shared only with your matched {role === "driver" ? "customer" : "driver"} so you can call each other.
+              </p>
             </div>
 
             <button

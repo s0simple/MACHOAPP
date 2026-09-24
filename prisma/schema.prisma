@@ -171,7 +171,6 @@ model TransportationRequest {
   length             Float?
   width              Float?
   height             Float?
-  quantity           Int       @default(1)
   isFragile          Boolean   @default(false)
   needsRefrigeration Boolean   @default(false)
   // Scheduling (Ghana is UTC+0 year-round, so instants equal local wall time)
@@ -185,6 +184,10 @@ model TransportationRequest {
   distance           Float
   estimatedPrice     Float?
   status             String    @default("pending")
+  // Cancellation audit trail (populated only when a passenger cancels a
+  // still-pending request; see /api/requests/[id]/cancel).
+  cancelReason       String?
+  cancelledAt        DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   passenger          Passenger @relation(fields: [passengerId], references: [id])
